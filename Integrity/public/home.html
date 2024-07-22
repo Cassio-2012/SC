@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.2.1/jsencrypt.min.js"></script>
+    <!-- Import the Fingerprint library -->
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+</head>
+<body>
+    <h1>Transfer</h1>
+    <form id="transferForm">
+        <label for="account">Account:</label>
+        <input type="number" id="account" name="account" required><br><br>
+        <label for="amount">Amount:</label>
+        <input type="number" id="amount" name="amount" required><br><br>
+        <button type="submit">Transfer</button>
+    </form>
+
+    <script>      
+        document.getElementById('transferForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const amount = document.getElementById('amount').value;
+            const account = document.getElementById('account').value;
+           
+            const data = JSON.stringify({amount: amount, account: account});                
+
+            integrityHash = await generateIntegrityHash(data)
+                .then(hash => {                    
+                    fetch('/transfer', {                        
+                        method: 'POST',
+                        headers: {
+                        'Content-Type': 'application/json',
+                        'x-integrity': hash,
+                        'Authorization': sessionStorage.getItem('token')
+                        },
+                        body: data 
+                    })
+                    .then(response => response.text())
+                    .then(data => console.log(data))
+                    .catch(error => console.error('Error:', error));                    
+                })                                          
+        });
+
+        async function generateIntegrityHash(data){        
+                                    
+            //const bodyString = JSON.stringify(data);
+
+            const clientId = sessionStorage.getItem('fingerPrint');
+
+            var userAgent = navigator.userAgent;
+            var origin = document.location.origin;
+
+            // Mock the header as it should be on browser
+            const headers = {
+                'Content-Type': 'application/json',
+                'Origin': origin,  
+                'User-Agent': userAgent 
+            };
+
+        // Convert the headers object to a string
+        const headersString = Object.keys(headers)
+            .map(key => `${key}: ${headers[key]}`)
+            .join(', ');
+
+            console.log(headersString); // Output
+
+            var integrityPayload = headersString+data+clientId;
+
+            console.log(integrityPayload);
+
+            // Make the hash value
+            try {
+                
+                const hash = await generateSHA256Hash(integrityPayload);
+                                
+                return hash
+            // Continue with processing using the hash
+            } catch (error) {
+                console.error('Error generating hash:', error);
+            return "";
+          }
+
+        }
+
+        async function generateSHA256Hash(input) {
+            // Encode the input string as a Uint8Array
+            const encoder = new TextEncoder();
+            const data = encoder.encode(input);
+            
+            // Hash the data using SHA-256
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            
+            // Convert the ArrayBuffer to a hexadecimal string
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+            
+            return hashHex;
+        }
+     
+    </script>
+</body>
+</html>

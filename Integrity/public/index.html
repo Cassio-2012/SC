@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.2.1/jsencrypt.min.js"></script>
+    <!-- Import the Fingerprint library -->
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+</head>
+<body>
+    <h1>Login</h1>
+    <form id="loginForm">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br><br>
+        <button type="submit">Login</button>
+    </form>
+
+    <script>      
+        document.getElementById('loginForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+           
+            const data = JSON.stringify({username: username, password: password});                          
+
+                    // Use the async function and display the visitor ID
+            getVisitorId().then(visitorId => {                
+                if (visitorId) {
+                    fetch('/login', {                        
+                        method: 'POST',
+                        headers: {
+                        'Content-Type': 'application/json',
+                        'x-Fingerprint': visitorId
+                        },
+                        body: JSON.stringify({ data })
+                    })
+                    .then(response => response.text())
+                    .then(data =>  sessionStorage.setItem('token', JSON.stringify(JSON.parse(data).accessToken)),
+                                   sessionStorage.setItem('fingerPrint', visitorId))
+                    .catch(error => console.error('Error:', error));
+
+                    window.location.href = '/home';
+                } else {
+                    console.error('Failed to generate Visitor ID');
+                }
+            });           
+        });
+        
+        async function getVisitorId() {
+            try {
+                // Load the library
+                const fp = await FingerprintJS.load();
+                // Get the visitor identifier
+                const result = await fp.get();
+                // Return the visitor ID
+                return result.visitorId;
+            } catch (error) {
+                console.error(error);                
+            }
+        }
+    </script>
+</body>
+</html>
